@@ -592,79 +592,80 @@ class WireguardConfiguration:
     def __getPeers(self):
         
         mt = os.path.getmtime(os.path.join(WG_CONF_PATH, f'{self.Name}.conf'))
-        # if self.__configFileModifiedTime is None or self.__configFileModifiedTime != mt:
-        self.Peers = []
-        with open(os.path.join(WG_CONF_PATH, f'{self.Name}.conf'), 'r') as configFile:
-            p = []
-            pCounter = -1
-            content = configFile.read().split('\n')
-            try:
-                peerStarts = content.index("[Peer]")
-                content = content[peerStarts:]
-                for i in content:
-                    if not regex_match("#(.*)", i) and not regex_match(";(.*)", i):
-                        if i == "[Peer]":
-                            pCounter += 1
-                            p.append({})
-                            p[pCounter]["name"] = ""
-                        else:
-                            if len(i) > 0:
-                                split = re.split(r'\s*=\s*', i, 1)
-                                if len(split) == 2:
-                                    p[pCounter][split[0]] = split[1]
+        if self.__configFileModifiedTime is None or self.__configFileModifiedTime != mt:
+            print(f"[WGDashboard] WireGuard configuration file modified. Reading {self.Name}.conf now")
+            self.Peers = []
+            with open(os.path.join(WG_CONF_PATH, f'{self.Name}.conf'), 'r') as configFile:
+                p = []
+                pCounter = -1
+                content = configFile.read().split('\n')
+                try:
+                    peerStarts = content.index("[Peer]")
+                    content = content[peerStarts:]
+                    for i in content:
+                        if not regex_match("#(.*)", i) and not regex_match(";(.*)", i):
+                            if i == "[Peer]":
+                                pCounter += 1
+                                p.append({})
+                                p[pCounter]["name"] = ""
+                            else:
+                                if len(i) > 0:
+                                    split = re.split(r'\s*=\s*', i, 1)
+                                    if len(split) == 2:
+                                        p[pCounter][split[0]] = split[1]
+                        
+                        if regex_match("#Name# = (.*)", i):
+                            split = re.split(r'\s*=\s*', i, 1)
+                            print(split)
+                            if len(split) == 2:
+                                p[pCounter]["name"] = split[1]
                     
-                    if regex_match("#Name# = (.*)", i):
-                        split = re.split(r'\s*=\s*', i, 1)
-                        print(split)
-                        if len(split) == 2:
-                            p[pCounter]["name"] = split[1]
-                
-                for i in p:
-                    if "PublicKey" in i.keys():
-                        checkIfExist = sqlSelect("SELECT * FROM '%s' WHERE id = ?" % self.Name,
-                                                      ((i['PublicKey']),)).fetchone()
-                        if checkIfExist is None:
-                            newPeer = {
-                                "id": i['PublicKey'],
-                                "private_key": "",
-                                "DNS": DashboardConfig.GetConfig("Peers", "peer_global_DNS")[1],
-                                "endpoint_allowed_ip": DashboardConfig.GetConfig("Peers", "peer_endpoint_allowed_ip")[
-                                    1],
-                                "name": i.get("name"),
-                                "total_receive": 0,
-                                "total_sent": 0,
-                                "total_data": 0,
-                                "endpoint": "N/A",
-                                "status": "stopped",
-                                "latest_handshake": "N/A",
-                                "allowed_ip": i.get("AllowedIPs", "N/A"),
-                                "cumu_receive": 0,
-                                "cumu_sent": 0,
-                                "cumu_data": 0,
-                                "traffic": [],
-                                "mtu": DashboardConfig.GetConfig("Peers", "peer_mtu")[1],
-                                "keepalive": DashboardConfig.GetConfig("Peers", "peer_keep_alive")[1],
-                                "remote_endpoint": DashboardConfig.GetConfig("Peers", "remote_endpoint")[1],
-                                "preshared_key": i["PresharedKey"] if "PresharedKey" in i.keys() else ""
-                            }
-                            sqlUpdate(
-                                """
-                                INSERT INTO '%s'
-                                    VALUES (:id, :private_key, :DNS, :endpoint_allowed_ip, :name, :total_receive, :total_sent, 
-                                    :total_data, :endpoint, :status, :latest_handshake, :allowed_ip, :cumu_receive, :cumu_sent, 
-                                    :cumu_data, :mtu, :keepalive, :remote_endpoint, :preshared_key);
-                                """ % self.Name
-                                , newPeer)
-                            # sqldb.commit()
-                            self.Peers.append(Peer(newPeer, self))
-                        else:
-                            sqlUpdate("UPDATE '%s' SET allowed_ip = ? WHERE id = ?" % self.Name,
-                                           (i.get("AllowedIPs", "N/A"), i['PublicKey'],))
-                            # sqldb.commit()
-                            self.Peers.append(Peer(checkIfExist, self))
-            except Exception as e:
-                print(f"[WGDashboard] {self.Name} Error: {str(e)}")
-            self.__configFileModifiedTime = mt
+                    for i in p:
+                        if "PublicKey" in i.keys():
+                            checkIfExist = sqlSelect("SELECT * FROM '%s' WHERE id = ?" % self.Name,
+                                                          ((i['PublicKey']),)).fetchone()
+                            if checkIfExist is None:
+                                newPeer = {
+                                    "id": i['PublicKey'],
+                                    "private_key": "",
+                                    "DNS": DashboardConfig.GetConfig("Peers", "peer_global_DNS")[1],
+                                    "endpoint_allowed_ip": DashboardConfig.GetConfig("Peers", "peer_endpoint_allowed_ip")[
+                                        1],
+                                    "name": i.get("name"),
+                                    "total_receive": 0,
+                                    "total_sent": 0,
+                                    "total_data": 0,
+                                    "endpoint": "N/A",
+                                    "status": "stopped",
+                                    "latest_handshake": "N/A",
+                                    "allowed_ip": i.get("AllowedIPs", "N/A"),
+                                    "cumu_receive": 0,
+                                    "cumu_sent": 0,
+                                    "cumu_data": 0,
+                                    "traffic": [],
+                                    "mtu": DashboardConfig.GetConfig("Peers", "peer_mtu")[1],
+                                    "keepalive": DashboardConfig.GetConfig("Peers", "peer_keep_alive")[1],
+                                    "remote_endpoint": DashboardConfig.GetConfig("Peers", "remote_endpoint")[1],
+                                    "preshared_key": i["PresharedKey"] if "PresharedKey" in i.keys() else ""
+                                }
+                                sqlUpdate(
+                                    """
+                                    INSERT INTO '%s'
+                                        VALUES (:id, :private_key, :DNS, :endpoint_allowed_ip, :name, :total_receive, :total_sent, 
+                                        :total_data, :endpoint, :status, :latest_handshake, :allowed_ip, :cumu_receive, :cumu_sent, 
+                                        :cumu_data, :mtu, :keepalive, :remote_endpoint, :preshared_key);
+                                    """ % self.Name
+                                    , newPeer)
+                                # sqldb.commit()
+                                self.Peers.append(Peer(newPeer, self))
+                            else:
+                                sqlUpdate("UPDATE '%s' SET allowed_ip = ? WHERE id = ?" % self.Name,
+                                               (i.get("AllowedIPs", "N/A"), i['PublicKey'],))
+                                # sqldb.commit()
+                                self.Peers.append(Peer(checkIfExist, self))
+                except Exception as e:
+                    print(f"[WGDashboard] {self.Name} Error: {str(e)}")
+        self.__configFileModifiedTime = mt
             
     def addPeers(self, peers: list):
         for p in peers:
@@ -1368,7 +1369,10 @@ def _getWireguardConfigurationAvailableIP(configName: str) -> tuple[bool, list[s
                 add = p.allowed_ip.split(',')
                 for i in add:
                     a, c = i.split('/')
-                    existedAddress.append(ipaddress.ip_address(a.replace(" ", "")))
+                    try:
+                        existedAddress.append(ipaddress.ip_address(a.replace(" ", "")))
+                    except ValueError as e:
+                        print("[WGDashboard] Error: " + str(e))
 
         for p in configuration.getRestrictedPeersList():
             if len(p.allowed_ip) > 0:
@@ -2127,8 +2131,6 @@ def API_Welcome_Finish():
                                                                           "repeatNewPassword": data["repeatNewPassword"],
                                                                           "currentPassword": "admin"
                                                                       })
-        # updateEnableTotp, updateEnableTotpErr = DashboardConfig.SetConfig("Account", "enable_totp", data["enable_totp"])
-
         if not updateUsername or not updatePassword:
             return ResponseObject(False, f"{updateUsernameErr},{updatePasswordErr}".strip(","))
 
