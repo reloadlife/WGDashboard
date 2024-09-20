@@ -164,7 +164,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }else {
     await dashboardConfigurationStore.getConfiguration()
-    if (to.path === "/signin"){
+    if (to.path === "/signin" && auth){
       next("/")
     }else{
       next()
