@@ -138,9 +138,12 @@ router.beforeEach(async (to, from, next) => {
   }
   dashboardConfigurationStore.ShowNavBar = false;
   
-  if (to.meta.requiresAuth){
+  const auth = await checkAuth()
+  
+  // console.log(dashboardConfigurationStore.Configuration.Server.auth_req)
+  if (to.meta.requiresAuth && !auth){
     if (!dashboardConfigurationStore.getActiveCrossServer()){
-      if (cookie.getCookie("authToken") && await checkAuth()){
+      if (cookie.getCookie("authToken") && auth){
         await dashboardConfigurationStore.getConfiguration()
         if (!wireguardConfigurationsStore.Configurations && to.name !== "Configuration List"){
           await wireguardConfigurationsStore.getConfigurations();
@@ -160,7 +163,12 @@ router.beforeEach(async (to, from, next) => {
       next()
     }
   }else {
-    next();
+    await dashboardConfigurationStore.getConfiguration()
+    if (to.path === "/signin"){
+      next("/")
+    }else{
+      next()
+    }
   }
 });
 export default router
